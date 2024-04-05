@@ -3,48 +3,203 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <algorithm> // برای استفاده از std::sort
-
-// تعریف ساختار گره (Node)
+#include <algorithm>
 struct Node {
-    std::string word;   // کلمه
-    std::vector<std::string> meanings;   // معانی
-    Node* next;         // اشاره‌گر به گره بعدی
+    std::string word;                   // Word
+    std::string meanings;               // Meanings
+    Node* next;                         // Pointer to the next node
 };
 
-// تعریف کلاس دیکشنری
+// Dictionary class definition
 class Dictionary {
-private:
-    Node* head; // اشاره‌گر به ابتدای دیکشنری
-
 public:
-    // سازنده کلاس
-    Dictionary() : head(nullptr) {}
-    // منوی اضافه کردن کلمات
-    void addWord2(const std::string& word, const std::string& meanings) {
-    if (wordExists(word)) {
-        // If the word exists in the dictionary file, add the new meaning to the existing meanings.
-        Node* current = head;
-        while (current != nullptr) {
-            if (current->word == word) {
-                current->meanings.push_back(meanings); // Add the new meaning to the vector of meanings.
-                break;
-            }
-            current = current->next;
+    // Constructor
+    Dictionary() {
+        // Check if the file exists, if not create it
+        std::ifstream file("dictionary.txt");
+        if (!file.is_open()) {
+            std::ofstream createFile("dictionary.txt");
+            createFile.close();
         }
-    } else {
-        // Otherwise, if the word doesn't exist, add the new word along with its meaning to the list.
-        Node* newNode = new Node; // Create a new node.
-        newNode->word = word;     // Set the word.
-        newNode->meanings.push_back(meanings); // Add the meaning to the vector of meanings.
-        newNode->next = head;     // Set the next pointer to the current head.
-        head = newNode;           // Update the head pointer.
     }
-}
 
+    // Function to print words and their meanings
+    void printDictionary() const {
+        std::ifstream inputFile("dictionary.txt");
+        if (!inputFile.is_open()) {
+            std::cerr << "Error: Couldn't open the file." << std::endl;
+            return;
+        }
+        std::string line;
+        while (std::getline(inputFile, line)) {
+            std::cout << line << std::endl;
+        }
+        inputFile.close();
+    }
 
-     // تابع برای بررسی وجود کلمه در فایل
+    // Function to check if a word exists in the dictionary
     bool wordExists(const std::string& word) const {
+        std::ifstream file("dictionary.txt");
+        if (!file.is_open()) {
+            std::cerr << "Error: Couldn't open the file." << std::endl;
+            return false;
+        }
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            std::string token;
+            // Check each word in the line for a match
+            while (std::getline(iss, token, ':')) {
+                if (token == word) {
+                    file.close();
+                    return true;
+                }
+            }
+        }
+        file.close();
+        return false;
+    }
+
+    // Function to add words and their meanings
+    // Function to add words and their meanings
+    void addWord(const std::string& word, const std::string& meanings) {
+        // Check if the word exists
+        bool wordFound = false;
+        std::ifstream inputFile("dictionary.txt");
+        std::ofstream tempFile("temp.txt");
+        if (!inputFile.is_open() || !tempFile.is_open()) {
+            std::cerr << "Error: Couldn't open the file." << std::endl;
+            inputFile.close();
+            tempFile.close();
+            return;
+        }
+
+        std::string line;
+        while (std::getline(inputFile, line)) {
+            std::string currentWord;
+            std::stringstream ss(line);
+            std::getline(ss, currentWord, ':');
+            if (currentWord == word) {
+                wordFound = true;
+                std::vector<std::string> existingMeanings;
+                std::string meaning;
+                while (std::getline(ss, meaning, ',')) {
+                    existingMeanings.push_back(meaning);
+                }
+                std::istringstream iss(meanings);
+                while (std::getline(iss, meaning, ',')) {
+                    if (std::find(existingMeanings.begin(), existingMeanings.end(), meaning) == existingMeanings.end()) {
+                        existingMeanings.push_back(meaning);
+                    }
+                }
+                std::sort(existingMeanings.begin(), existingMeanings.end());
+                tempFile << currentWord << ":";
+                for (size_t i = 0; i < existingMeanings.size(); ++i) {
+                    if (i != 0)
+                        tempFile << ",";
+                    tempFile << existingMeanings[i];
+                }
+                tempFile << std::endl;
+            } else {
+                tempFile << line << std::endl; // Write the line as it is
+            }
+        }
+
+        // If word is not found, append it to the end
+        if (!wordFound) {
+            tempFile << word << ":" << meanings << std::endl;
+        }
+
+        inputFile.close();
+        tempFile.close();
+
+        // Replace the original file with the temporary file
+        std::remove("dictionary.txt");
+        std::rename("temp.txt", "dictionary.txt");
+
+        // Sort all meanings in the dictionary file
+        sortMeanings();
+        sortWords();
+    }
+
+    void sortWords() {
+        std::ifstream inputFile("dictionary.txt");
+        if (!inputFile.is_open()) {
+            std::cerr << "Error: Couldn't open the file." << std::endl;
+            return;
+        }
+
+        std::vector<std::string> lines;
+        std::string line;
+        while (std::getline(inputFile, line)) {
+            lines.push_back(line);
+        }
+        inputFile.close();
+
+        // Sort the lines
+        std::sort(lines.begin(), lines.end());
+
+        // Rewrite the sorted lines to the file
+        std::ofstream outputFile("dictionary.txt");
+        if (!outputFile.is_open()) {
+            std::cerr << "Error: Couldn't open the file." << std::endl;
+            return;
+        }
+
+        for (const auto& sortedLine : lines) {
+            outputFile << sortedLine << std::endl;
+        }
+        outputFile.close();
+    }
+
+    // Function to sort the meanings of each word
+    void sortMeanings() {
+        std::ifstream inputFile("dictionary.txt");
+        if (!inputFile.is_open()) {
+            std::cerr << "Error: Couldn't open the file." << std::endl;
+            return;
+        }
+
+        std::ofstream tempFile("temp.txt");
+        if (!tempFile.is_open()) {
+            std::cerr << "Error: Couldn't open the file." << std::endl;
+            inputFile.close();
+            return;
+        }
+
+        std::string line;
+        while (std::getline(inputFile, line)) {
+            std::istringstream iss(line);
+            std::string word;
+            std::getline(iss, word, ':');
+
+            // Extract and sort meanings
+            std::vector<std::string> meanings;
+            std::string meaning;
+            while (std::getline(iss, meaning, ',')) {
+                meanings.push_back(meaning);
+            }
+            std::sort(meanings.begin(), meanings.end());
+
+            // Write sorted line to temporary file
+            tempFile << word << ":";
+            for (const auto& m : meanings) {
+                tempFile << m;
+                if (&m != &meanings.back()) // Add comma if not the last meaning
+                    tempFile << ",";
+            }
+            tempFile << std::endl;
+        }
+
+        inputFile.close();
+        tempFile.close();
+
+        // Replace the original file with the temporary file
+        std::remove("dictionary.txt");
+        std::rename("temp.txt", "dictionary.txt");
+    }
+// Function to check if a meaning exists for a word
+    bool meaningExists(const std::string& word, const std::string& meaning) const {
         std::ifstream file("dictionary.txt");
         if (!file.is_open()) {
             std::cerr << "Error: Couldn't open the file." << std::endl;
@@ -54,14 +209,20 @@ public:
         std::string line;
         while (std::getline(file, line)) {
             std::istringstream iss(line);
-            std::string token;
-
-            // بررسی هر کلمه در خط و برابری آن با کلمه مورد نظر
-            while (std::getline(iss, token, ',')) {
-                if (token == word) {
-                    file.close();
-                    return true;
+            std::string currentWord;
+            std::getline(iss, currentWord, ':');
+            if (currentWord == word) {
+                std::string token;
+                while (std::getline(iss, token, ',')) {
+                    // Trim leading and trailing spaces
+                    token.erase(0, token.find_first_not_of(" \t\n\r\f\v"));
+                    token.erase(token.find_last_not_of(" \t\n\r\f\v") + 1);
+                    if (token == meaning) {
+                        file.close();
+                        return true;
+                    }
                 }
+                break;
             }
         }
 
@@ -69,285 +230,36 @@ public:
         return false;
     }
 
-    // تابع برای اضافه کردن یک واژه و معنی به دیکشنری
-    void addWord(const std::string& word, const std::string& meanings) {
-    Node* newNode = new Node; // Create a new node
-    newNode->word = word;     // Set the word
-
-    // Split the meanings string into individual meanings
-    std::istringstream iss(meanings);
-    std::string meaning;
-    while (std::getline(iss, meaning, ',')) {
-        newNode->meanings.push_back(meaning); // Add each meaning to the vector of meanings
-    }
-
-    newNode->next = head;     // Set the next pointer to the current head
-    head = newNode;           // Update the head pointer
-}
-
-
-    // تابع برای چاپ لیست کلمات و معانی
-    void printDictionary() const {
-    std::ofstream outputFile("dictionary.txt", std::ios::app); // Open a file for writing with append mode
-
-    if (!outputFile.is_open()) { // Check if the file was opened successfully
-        std::cerr << "Error: Couldn't open the file." << std::endl;
-        return;
-    }
-
-    Node* current = head;
-    while (current != nullptr) {
-        outputFile << current->word; // Output the word
-
-        // Output meanings
-        for (const std::string& meaning : current->meanings) {
-            outputFile << ", " << meaning;
-        }
-
-        outputFile << std::endl;
-        current = current->next;
-    }
-
-    outputFile.close();
-}
-
-
-    void printDict() {
-        std::ifstream inputFile("dictionary.txt"); // باز کردن فایل برای خواندن
-
-        if (!inputFile.is_open()) { // بررسی موفقیت باز کردن فایل
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        std::string line;
-        std::cout << "Content of text.txt:" << std::endl;
-        while (std::getline(inputFile, line)) { // خواندن و پرینت کردن هر خط از فایل
-            std::cout << line << std::endl;
-        }
-
-        inputFile.close(); // بستن فایل
-
-    }
-
-    void searchWordInFile(const std::string& word) const {
-        std::ifstream inputFile("dictionary.txt"); // باز کردن فایل برای خواندن
-
-        if (!inputFile.is_open()) { // بررسی موفقیت باز کردن فایل
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        std::string line;
-        while (std::getline(inputFile, line)) { // خواندن خط به خط از فایل
-            if (line.find(word) != std::string::npos) { // اگر کلمه مورد نظر در خط وجود داشت
-                std::cout << line << std::endl; // چاپ خط
-            }
-        }
-
-        inputFile.close(); // بستن فایل
-    }
-
-    // تابع برای حذف کلمه به همراه مترادف‌های آن از لیست
-    void removeWordFromList(const std::string& word) {
-        Node* current = head;
-        Node* prev = nullptr;
-
-        // پیدا کردن گره مربوط به کلمه مورد نظر
-        while (current != nullptr && current->word != word) {
-            prev = current;
-            current = current->next;
-        }
-
-        if (current == nullptr) {
-            std::cerr << "Word not found in the dictionary." << std::endl;
-            return;
-        }
-
-        // حذف گره مربوط به کلمه از لیست
-        if (prev == nullptr) {
-            head = current->next;
-        } else {
-            prev->next = current->next;
-        }
-
-        delete current;
-        std::cout << "Word and its synonyms removed from the dictionary list." << std::endl;
-    }
-
-    // تابع برای حذف کلمه به همراه مترادف‌های آن از فایل متنی
-    void removeWordFromFile(const std::string& filename, const std::string& word) {
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        std::string line;
-        std::vector<std::string> lines;
-
-        // خواندن هر خط از فایل و اضافه کردن آن به لیست خطوط
-        while (std::getline(file, line)) {
-            if (line.find(word) == std::string::npos) { // اگر کلمه مورد نظر در خط نبود
-                lines.push_back(line);
-            }
-        }
-
-        file.close();
-
-        // باز کردن فایل برای نوشتن و نوشتن خطوط غیر حذف شده در آن
-        std::ofstream outFile(filename);
-        if (!outFile.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        for (const auto& line : lines) {
-            outFile << line << std::endl;
-        }
-
-        outFile.close();
-
-        std::cout << "Word and its synonyms removed from the dictionary file." << std::endl;
-    }
-
-     void replaceWord(const std::string& oldWord, const std::string& newWord) {
-        // جایگزین کردن کلمه در لیست
-        Node* current = head;
-        while (current != nullptr) {
-            if (current->word == oldWord) {
-                current->word = newWord;
-            }
-            current = current->next;
-        }
-
-        // جایگزین کردن کلمه در فایل متنی
-        std::ifstream file("dictionary.txt");
-        if (!file.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        std::string line;
-        std::vector<std::string> lines;
-
-        while (std::getline(file, line)) {
-            std::istringstream iss(line);
-            std::string token;
-            std::string newLine;
-
-            while (std::getline(iss, token, ',')) {
-                if (token == oldWord) {
-                    token = newWord;
-                }
-                newLine += token + ",";
-            }
-
-            // حذف کاراکتر ',' اضافی از انتهای خط
-            if (!newLine.empty() && newLine.back() == ',') {
-                newLine.pop_back();
-            }
-
-            lines.push_back(newLine);
-        }
-
-        file.close();
-
-        std::ofstream outFile("dictionary.txt");
-        if (!outFile.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        for (const auto& line : lines) {
-            outFile << line << std::endl;
-        }
-
-        outFile.close();
-
-        std::cout << "Word replaced in the dictionary." << std::endl;
-    }
 };
-
 int main() {
-    Dictionary dict; // ایجاد یک شیء از کلاس دیکشنری
-
+    Dictionary dict;
     std::string newWord;
-    std::cout << "Enter new word: " << std::endl;
-    std::cin >> newWord;
+    std::cout << "Enter a new word: ";
+    std::getline(std::cin, newWord); // Read the word including spaces
 
-    std::vector<std::string> inputs; // استفاده از std::vector به جای std::list
-
+    std::string meanings;
     std::string input;
-    std::cout << "Enter synonyms for '" << newWord << "' (type 'end' to stop):" << std::endl;
+    std::cout << "Enter meanings for '" << newWord << "' (type 'end' to stop):" << std::endl;
     while (true) {
-        std::cin >> input;
-        if (input == "end") // اگر واژه "end" وارد شود، حلقه متوقف می‌شود
+        std::getline(std::cin, input);
+        if (input == "end")
             break;
-        inputs.push_back(input); // اضافه کردن ورودی به آرایه
+        
+        // Check if the meaning already exists
+        if (dict.wordExists(newWord) && dict.meaningExists(newWord, input)) {
+            std::cout << "Meaning already exists. Enter another or type 'end' to stop:" << std::endl;
+            continue;
+        }
+
+        if (!meanings.empty())
+            meanings += ",";
+        meanings += input; // Concatenate the meanings
     }
 
-    // اضافه کردن کلمات و مترادف‌ها به دیکشنری
-    for (const auto& word : inputs) {
-        dict.addWord2(newWord, word);
-    }
-
-    // چاپ لیست کلمات و معانی در فایل
+    dict.addWord(newWord, meanings);
+    
     dict.printDictionary();
-
     std::cout << "Dictionary saved to 'dictionary.txt'." << std::endl;
 
     return 0;
-
-    // Dictionary dict; // ایجاد یک شیء از کلاس دیکشنری
-
-    // std::string newWord;
-    // std::cout << "Enter new word: " << std::endl;
-    // std::cin >> newWord;
-
-    // std::vector<std::string> inputs; // استفاده از std::vector به جای std::list
-
-    // std::string input;
-    // bool atLeastOneWord = false; // متغیری برای نشان دادن اینکه حداقل یک کلمه دریافت شده است یا خیر
-    // std::cout << "Enter synonyms for '" << newWord << "' (type 'end' to stop):" << std::endl;
-    // while (true) {
-    //     std::cin >> input;
-    //     if (input == "end") {
-    //         if (!atLeastOneWord) {
-    //             std::cout << "Please enter at least one synonym." << std::endl;
-    //             continue; // اگر حداقل یک کلمه وارد نشده باشد، ادامه دهید
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //     inputs.push_back(input); // اضافه کردن ورودی به آرایه
-    //     atLeastOneWord = true; // نشان دادن اینکه حداقل یک کلمه دریافت شده است
-    // }
-
-
-    // // اضافه کردن کلمات و مترادف‌ها به دیکشنری
-    // for (const auto& word : inputs) {
-    //     dict.addWord2(newWord, word);
-    // }
-
-    // // چاپ لیست کلمات و معانی در فایل
-    // dict.printDictionary();
-
-    // std::cout << "Dictionary saved to 'dictionary.txt'." << std::endl;
-
-    // // print all of dictionary
-    // // dict.printDict();
-    // dict.searchWordInFile("errr");
-
-    // // حذف کلمه از لیست
-    // dict.removeWordFromList("dddd");
-
-    // // حذف کلمه از فایل متنی
-    // dict.removeWordFromFile("dictionary.txt", "boy");
-
-    // // change spelling of word in list and file
-    // dict.replaceWord("hello", "hi");
-
-
-    // return 0;
 }
