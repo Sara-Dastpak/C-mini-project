@@ -1,265 +1,195 @@
+#include <algorithm> // for std::sort
+#include <unordered_set>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <algorithm>
+
 struct Node {
-    std::string word;                   // Word
-    std::string meanings;               // Meanings
-    Node* next;                         // Pointer to the next node
+    std::string word;
+    std::vector<std::string> meanings;
+    Node* next;
+
+    Node(const std::string& w) : word(w), next(nullptr) {}
 };
 
-// Dictionary class definition
 class Dictionary {
+private:
+    Node* head;
 public:
-    // Constructor
-    Dictionary() {
-        // Check if the file exists, if not create it
-        std::ifstream file("dictionary.txt");
-        if (!file.is_open()) {
-            std::ofstream createFile("dictionary.txt");
-            createFile.close();
-        }
-    }
+    Dictionary() : head(nullptr) {}
 
-    // Function to print words and their meanings
-    void printDictionary() const {
-        std::ifstream inputFile("dictionary.txt");
-        if (!inputFile.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
+    void readFromFile(const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "File doesn't exist. Creating a new file..." << std::endl;
+            std::ofstream createFile(filename);
+            createFile.close();
             return;
         }
-        std::string line;
-        while (std::getline(inputFile, line)) {
-            std::cout << line << std::endl;
-        }
-        inputFile.close();
-    }
 
-    // Function to check if a word exists in the dictionary
-    bool wordExists(const std::string& word) const {
-        std::ifstream file("dictionary.txt");
-        if (!file.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return false;
-        }
         std::string line;
         while (std::getline(file, line)) {
-            std::istringstream iss(line);
-            std::string token;
-            // Check each word in the line for a match
-            while (std::getline(iss, token, ':')) {
-                if (token == word) {
-                    file.close();
-                    return true;
-                }
-            }
-        }
-        file.close();
-        return false;
-    }
-
-    // Function to add words and their meanings
-    // Function to add words and their meanings
-    void addWord(const std::string& word, const std::string& meanings) {
-        // Check if the word exists
-        bool wordFound = false;
-        std::ifstream inputFile("dictionary.txt");
-        std::ofstream tempFile("temp.txt");
-        if (!inputFile.is_open() || !tempFile.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            inputFile.close();
-            tempFile.close();
-            return;
-        }
-
-        std::string line;
-        while (std::getline(inputFile, line)) {
-            std::string currentWord;
-            std::stringstream ss(line);
-            std::getline(ss, currentWord, ':');
-            if (currentWord == word) {
-                wordFound = true;
-                std::vector<std::string> existingMeanings;
-                std::string meaning;
-                while (std::getline(ss, meaning, ',')) {
-                    existingMeanings.push_back(meaning);
-                }
-                std::istringstream iss(meanings);
-                while (std::getline(iss, meaning, ',')) {
-                    if (std::find(existingMeanings.begin(), existingMeanings.end(), meaning) == existingMeanings.end()) {
-                        existingMeanings.push_back(meaning);
-                    }
-                }
-                std::sort(existingMeanings.begin(), existingMeanings.end());
-                tempFile << currentWord << ":";
-                for (size_t i = 0; i < existingMeanings.size(); ++i) {
-                    if (i != 0)
-                        tempFile << ",";
-                    tempFile << existingMeanings[i];
-                }
-                tempFile << std::endl;
-            } else {
-                tempFile << line << std::endl; // Write the line as it is
-            }
-        }
-
-        // If word is not found, append it to the end
-        if (!wordFound) {
-            tempFile << word << ":" << meanings << std::endl;
-        }
-
-        inputFile.close();
-        tempFile.close();
-
-        // Replace the original file with the temporary file
-        std::remove("dictionary.txt");
-        std::rename("temp.txt", "dictionary.txt");
-
-        // Sort all meanings in the dictionary file
-        sortMeanings();
-        sortWords();
-    }
-
-    void sortWords() {
-        std::ifstream inputFile("dictionary.txt");
-        if (!inputFile.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        std::vector<std::string> lines;
-        std::string line;
-        while (std::getline(inputFile, line)) {
-            lines.push_back(line);
-        }
-        inputFile.close();
-
-        // Sort the lines
-        std::sort(lines.begin(), lines.end());
-
-        // Rewrite the sorted lines to the file
-        std::ofstream outputFile("dictionary.txt");
-        if (!outputFile.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        for (const auto& sortedLine : lines) {
-            outputFile << sortedLine << std::endl;
-        }
-        outputFile.close();
-    }
-
-    // Function to sort the meanings of each word
-    void sortMeanings() {
-        std::ifstream inputFile("dictionary.txt");
-        if (!inputFile.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return;
-        }
-
-        std::ofstream tempFile("temp.txt");
-        if (!tempFile.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            inputFile.close();
-            return;
-        }
-
-        std::string line;
-        while (std::getline(inputFile, line)) {
             std::istringstream iss(line);
             std::string word;
-            std::getline(iss, word, ':');
-
-            // Extract and sort meanings
-            std::vector<std::string> meanings;
-            std::string meaning;
-            while (std::getline(iss, meaning, ',')) {
-                meanings.push_back(meaning);
-            }
-            std::sort(meanings.begin(), meanings.end());
-
-            // Write sorted line to temporary file
-            tempFile << word << ":";
-            for (const auto& m : meanings) {
-                tempFile << m;
-                if (&m != &meanings.back()) // Add comma if not the last meaning
-                    tempFile << ",";
-            }
-            tempFile << std::endl;
-        }
-
-        inputFile.close();
-        tempFile.close();
-
-        // Replace the original file with the temporary file
-        std::remove("dictionary.txt");
-        std::rename("temp.txt", "dictionary.txt");
-    }
-// Function to check if a meaning exists for a word
-    bool meaningExists(const std::string& word, const std::string& meaning) const {
-        std::ifstream file("dictionary.txt");
-        if (!file.is_open()) {
-            std::cerr << "Error: Couldn't open the file." << std::endl;
-            return false;
-        }
-
-        std::string line;
-        while (std::getline(file, line)) {
-            std::istringstream iss(line);
-            std::string currentWord;
-            std::getline(iss, currentWord, ':');
-            if (currentWord == word) {
-                std::string token;
-                while (std::getline(iss, token, ',')) {
-                    // Trim leading and trailing spaces
-                    token.erase(0, token.find_first_not_of(" \t\n\r\f\v"));
-                    token.erase(token.find_last_not_of(" \t\n\r\f\v") + 1);
-                    if (token == meaning) {
-                        file.close();
-                        return true;
+            if (std::getline(iss, word, ':')) {
+                std::string meaning;
+                while (std::getline(iss, meaning, ',')) {
+                    if (!wordExists(word)) { // Check if word exists in the linked list
+                        Node* newNode = new Node(word); // Create a new node for each word
+                        newNode->meanings.push_back(meaning); // Add meanings to the node
+                        newNode->next = head; // Set the next pointer of the new node to the current head
+                        head = newNode; // Update the head pointer to the new node
+                    } else { // If word already exists, just add the meaning to its existing node
+                        Node* current = head;
+                        while (current != nullptr) {
+                            if (current->word == word) {
+                                current->meanings.push_back(meaning);
+                                break;
+                            }
+                            current = current->next;
+                        }
                     }
                 }
-                break;
             }
         }
-
         file.close();
+    }
+
+    bool wordExists(const std::string& word) {
+        Node* current = head;
+        while (current != nullptr) {
+            if (current->word == word)
+                return true;
+            current = current->next;
+        }
         return false;
     }
 
+
+    void addWord(const std::string& word, const std::string& meaning) {
+        //readFromFile(filename); // Read the dictionary file to ensure proper initialization of head
+        if(wordExists(word)){
+            Node* current = head;
+            while (current != nullptr) {
+                if (current->word == word) {
+                // If the word exists, find the corresponding node and add the meaning to it
+                    current->meanings.push_back(meaning);
+                //saveToFile(filename); // Save the updated dictionary to file
+                    break; // Exit the function once the meaning is added
+                }
+            current = current->next;
+            }
+        }else{
+        // If the word doesn't exist, create a new node and add it to the list
+            Node* newNode = new Node(word); // Create a new node with the given word
+            newNode->meanings.push_back(meaning); // Add the meaning to the new node
+            newNode->next = head; // Set the next pointer of the new node to the current head
+            head = newNode; // Update the head pointer to the new node
+            //saveToFile(filename); // Save the updated dictionary to file
+        }
+    }
+    void sortWords() {
+        std::vector<Node*> nodes;
+        Node* current = head;
+        while (current != nullptr) {
+            nodes.push_back(current);
+            current = current->next;
+        }
+
+        std::sort(nodes.begin(), nodes.end(), [](Node* a, Node* b) {
+            return a->word > b->word; // Reverse the comparison logic
+        });
+
+        head = nullptr;
+        for (Node* node : nodes) {
+            node->next = head;
+            head = node;
+        }
+    }
+    void sortMeanings() {
+        Node* current = head;
+        while (current != nullptr) {
+            std::sort(current->meanings.begin(), current->meanings.end()); // Sort meanings alphabetically
+            auto last = std::unique(current->meanings.begin(), current->meanings.end()); // Remove duplicates
+            current->meanings.erase(last, current->meanings.end()); // Erase removed duplicates
+            current = current->next;
+        }
+    }
+    void saveToFile(const std::string& filename) {
+        std::ofstream outputFile(filename, std::ios::trunc);
+        if (!outputFile.is_open()) {
+            std::cerr << "Error: Couldn't open the file for writing." << std::endl;
+            return;
+        }
+        sortWords();
+        Node* current = head;
+        while (current != nullptr) {
+            // Write the word to the file
+            outputFile << current->word << ":";
+
+            // Write the meanings to the file
+            for (size_t i = 0; i < current->meanings.size(); ++i) {
+                outputFile << current->meanings[i];
+                if (i != current->meanings.size() - 1)
+                    outputFile << ",";
+            }
+
+            outputFile << std::endl; // End the line after writing all meanings for the word
+
+            current = current->next; // Move to the next node
+        }
+        outputFile.close(); // Close the file after writing
+    }
+    void printDictionary() const {
+        Node* current = head;
+        while (current != nullptr) {
+            std::cout << current->word << ": ";
+            for (size_t i = 0; i < current->meanings.size(); ++i) {
+                std::cout << current->meanings[i];
+                if (i != current->meanings.size() - 1)
+                    std::cout << ", ";
+            }
+            std::cout << std::endl;
+            current = current->next;
+        }
+    }
+private:
+    void clear() {
+        Node* current = head;
+        while (current != nullptr) {
+            Node* temp = current;
+            current = current->next;
+            delete temp;
+        }
+        head = nullptr;
+    }
+
 };
+
 int main() {
     Dictionary dict;
+    //std::ofstream file("dictionary.txt");
+
+    dict.readFromFile("dictionary.txt");
     std::string newWord;
     std::cout << "Enter a new word: ";
-    std::getline(std::cin, newWord); // Read the word including spaces
+    std::getline(std::cin, newWord);
 
-    std::string meanings;
     std::string input;
     std::cout << "Enter meanings for '" << newWord << "' (type 'end' to stop):" << std::endl;
     while (true) {
         std::getline(std::cin, input);
         if (input == "end")
             break;
-        
-        // Check if the meaning already exists
-        if (dict.wordExists(newWord) && dict.meaningExists(newWord, input)) {
-            std::cout << "Meaning already exists. Enter another or type 'end' to stop:" << std::endl;
-            continue;
-        }
-
-        if (!meanings.empty())
-            meanings += ",";
-        meanings += input; // Concatenate the meanings
+        dict.addWord(newWord, input);
     }
-
-    dict.addWord(newWord, meanings);
-    
+    dict.sortWords();
+    dict.sortMeanings();
     dict.printDictionary();
-    std::cout << "Dictionary saved to 'dictionary.txt'." << std::endl;
+    dict.saveToFile("dictionary.txt"); // Save to file
+    std::cout << "Dictionary updated and saved." << std::endl;
 
     return 0;
 }
