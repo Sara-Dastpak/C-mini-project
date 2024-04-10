@@ -217,6 +217,8 @@ public:
             std::cerr << "Error: Couldn't open the file for writing." << std::endl;
             return;
         }
+        sortWords();
+        sortMeanings();
         Node* current = head;
         while (current != nullptr) {
             outputFile << current->word << ":";
